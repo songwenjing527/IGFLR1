@@ -1,5 +1,3 @@
-
-setwd("D:/临床+生信/TMEM149免疫分析/单基因分析修-swj/UCSC下载/TMEM149分组后差异基因分析")#更改当前目录
 library("dplyr")
 library("DESeq2")
 library("limma")
@@ -21,8 +19,8 @@ data[data<0]=0
 View(data)
 
 table(substr(colnames(data),14,14))  
-t_index <- which(substr(colnames(data),14,14) == '0')#癌组织535
-n_index <- which(substr(colnames(data),14,14) == '1')#癌旁组织72
+t_index <- which(substr(colnames(data),14,14) == '0')
+n_index <- which(substr(colnames(data),14,14) == '1')
 data <- as.data.frame(data)
 
 exp_tumor <- select(data,t_index)
@@ -49,10 +47,7 @@ exp_t3 <- t(exp_t2)
 View(exp_t3)
 #median(exp_t1$IGFLR1,na.rm = T)=0.8907632
 
-
-
-
-#分组矩阵
+#group
 group_list <- c(rep('low',268),rep('high',267))
 group_list <- factor(group_list)
 design <- model.matrix(~0+group_list)
@@ -60,7 +55,7 @@ design
 rownames(design) = colnames(exp_t3)
 colnames(design) <- levels(group_list)
 exp_t3 <- as.matrix(exp_t3)
-#差异表达矩阵
+#Differential expression matrix
 DGElist <- DGEList( counts = exp_t3, group = group_list )
 keep_gene <- rowSums( cpm(DGElist) > 0 ) >= 1 # 自定义
 table(keep_gene)
@@ -78,8 +73,8 @@ nrDEG_limma_voom = topTable(fit2, coef = 'low-high', n = Inf)
 nrDEG_limma_voom = na.omit(nrDEG_limma_voom)
 head(nrDEG_limma_voom)
 View(nrDEG_limma_voom)
-padj = 0.05 # 自定义
-foldChange= 1 # 自定义
+padj = 0.05 
+foldChange= 1 
 
 nrDEG_limma_voom$sig[nrDEG_limma_voom$P.Value > padj|nrDEG_limma_voom$logFC < foldChange| nrDEG_limma_voom$logFC > -foldChange] <- "no"
 nrDEG_limma_voom$sig[nrDEG_limma_voom$P.Value <= padj & nrDEG_limma_voom$logFC >= foldChange] <- "down"
@@ -93,7 +88,6 @@ nrDEG_limma_voom_signif = nrDEG_limma_voom[(nrDEG_limma_voom$adj.P.Val < padj &
 nrDEG_limma_voom_signif = nrDEG_limma_voom_signif[order(nrDEG_limma_voom_signif$logFC1),]
 write.csv(nrDEG_limma_voom_signif, file = 'limma_signif.csv')
 
-setwd("D:/临床+生信/TMEM149免疫分析/单基因分析修-swj/UCSC下载/TMEM149分组后差异基因分析/差异分析")#更改当前目录
 outDiff <- read.csv(file="limma_signif.csv",sep = ',',header=T)
 exp <-  read.csv(file="exp_tumor.csv",sep = ',',header=T)
 View(outDiff)
@@ -102,7 +96,7 @@ x <- semi_join(exp,outDiff,by="gene")
 View(x)
 write.csv(x,file="DiffbExp.csv",sep=",",col.names=F,quote=F)
 
-#火山图
+#volcano plot
 nrDEG_limma_voom <- read.csv(file="limma_all1.csv",sep = ',',header=T,row.names=1)
 library(ggplot2)
 p<-ggplot(nrDEG_limma_voom,aes(x=nrDEG_limma_voom$logFC1,y=-log10(nrDEG_limma_voom$P.Value),colour=sig))+xlab("log2 Fold Change")+ylab("-log10P-Value")+
@@ -113,18 +107,16 @@ p<-ggplot(nrDEG_limma_voom,aes(x=nrDEG_limma_voom$logFC1,y=-log10(nrDEG_limma_vo
         axis.text.y = element_text(size=25),
         legend.title=element_text(family="Times",size=25),
         legend.text=element_text(family="Times",size=25))+
-  scale_color_manual(values =c("#0072B5","black","#BC3C28"))+#设置点的颜色
+  scale_color_manual(values =c("#0072B5","black","#BC3C28"))+#color
   geom_vline(aes(xintercept=1), colour="gray",size=1.2 ,linetype=2)+
   geom_vline(aes(xintercept=-1), colour="gray",size=1.2 ,linetype=2)+
   geom_hline(aes(yintercept=-log10(0.05)),colour="gray",size=1.2 ,linetype=2) 
-guides(fill=guide_legend(title=NULL))#去掉网格背景和图注标签
+guides(fill=guide_legend(title=NULL))
 print(p)
 ggsave(("limma_vol.tiff"),plot = print(p),width = 10,height = 8,units = "in")
 
-#热图
-setwd("D:/临床+生信/IGFLR1免疫分析/单基因分析修-swj/UCSC下载/TMEM149分组后差异基因分析/差异分析")#更改当前目录
+#heatmap
 outDiff <- read.csv(file="DiffbExp.csv",sep = ',',header=T,row.names=1)
-
 pdf(file="heatmap.pdf",height=12,width=20)
 pheatmap(hmExp, 
          annotation=Type, 
@@ -137,11 +129,8 @@ pheatmap(hmExp,
          fontsize_col=10)
 dev.off()
 
-
-
-#差异基因GO和KEGG
-setwd("D:/临床+生信/IGFLR1免疫分析/单基因分析修-swj/UCSC下载/TMEM149分组后差异基因分析/GO+KEGG")#更改当前目录
-#ID转换
+#GO and KEGG
+#ID change
 library("org.Hs.eg.db")
 rt=read.table("id.txt",sep="\t",check.names=F,header=T)
 View(rt)
@@ -155,12 +144,11 @@ library("clusterProfiler")
 library("org.Hs.eg.db")
 library("enrichplot")
 library("ggplot2")
-#GO
 
+#GO
 rt=read.table("id1.txt",sep="\t",header=T,check.names=F)
 rt=rt[is.na(rt[,"entrezID"])==F,]
 gene=rt$entrezID
-
 
 kk <- enrichGO(gene = gene,
                OrgDb = org.Hs.eg.db, 
@@ -170,8 +158,6 @@ kk <- enrichGO(gene = gene,
                readable =T)
 write.table(kk,file="GO.txt",sep="\t",quote=F,row.names = F)
 
-
-
 pdf(file="barplotGO.pdf",width = 15,height = 7)
 barplot(kk, drop = TRUE, showCategory =10,split="ONTOLOGY") + facet_grid(ONTOLOGY~., scale='free')
 dev.off()
@@ -180,32 +166,25 @@ pdf(file="bubbleGO.pdf",width = 14,height = 7)
 dotplot(kk,showCategory = 10,split="ONTOLOGY") + facet_grid(ONTOLOGY~., scale='free')
 dev.off()
 
-
 #KEGG
-
 rt=read.table("id1.txt",sep="\t",header=T,check.names=F)
 rt=rt[is.na(rt[,"entrezID"])==F,]
 gene=rt$entrezID
 
-#kegg????????
 kk <- enrichKEGG(gene = gene, organism = "hsa", pvalueCutoff =0.05, qvalueCutoff =0.05)
 write.table(kk,file="KEGG.txt",sep="\t",quote=F,row.names = F)
 
-#??״ͼ
 pdf(file="barplotKEGG.pdf",width = 9,height = 6)
 barplot(kk, drop = TRUE, showCategory = 30)
 dev.off()
 
-#????ͼ
 pdf(file="bubbleKEGG.pdf",width = 8,height = 6)
 dotplot(kk, showCategory = 30)
 dev.off()
 
-
-#交集基因GSEA分析
-#准备GSEA输入文件
-setwd("D:/临床+生信/TMEM149免疫分析/writing/单基因分析-swj/共表达网络分析及火山图/CBIOPORTAL")#更改当前目录
-c <- read.csv(file="交集基因.csv",sep = ',',header=T)
+#GSEA
+#GSEA input file
+c <- read.csv(file="Intersection gene.csv",sep = ',',header=T)
 View(c)
 
 e <- read.csv(file="exp_tumor.csv",sep = ',',header=T)
@@ -223,21 +202,17 @@ median(t$IGFLR1,na.rm = T)
 a <- ifelse(t$IGFLR1>median(t$IGFLR1,na.rm = T),"high","low")
 t$IGFLR1 <- a
 View(t)
-write.csv(i,file="交集基因表达.csv",row.names=F)
+write.csv(i,file="Intersection gene expression.csv",row.names=F)
 x <- t(t)
-write.csv(x,file="交集基因表达1.csv",row.names=T)
+write.csv(x,file="Intersection gene expression1.csv",row.names=T)
 
-
-
-#多通路富集分析
-
+#multiple pathway
 
 library(plyr)
 library(ggplot2)
 library(grid)
 library(gridExtra)
 
-setwd("D:/临床+生信/IGFLR1免疫分析/单基因分析修-swj/UCSC下载/TMEM149分组后差异基因分析/IMMUNE多通路")          
 files=grep(".xls",dir(),value=T)                                        
 data = lapply(files,read.delim)                                         
 names(data) = files
@@ -268,7 +243,6 @@ gGsea$widths = as.list(maxWidth)
 gGene$widths = as.list(maxWidth)
 dev.off()
 
-
 pdf('im.pdf',      
     width=11,                
     height=5)               
@@ -276,22 +250,12 @@ par(mar=c(5,5,2,5))
 grid.arrange(arrangeGrob(gGsea,gGene,nrow=2,heights=c(.8,.3)))
 dev.off()
 
-
-
-#与临床生存合并
 library(limma)
-setwd("D:/临床+生信/IGFLR1免疫分析/单基因分析修-swj/单因素多因素分析") 
-cli <- read.csv("cli_tumor1.csv",header=T,check.names=F)#临床病理特征
+cli <- read.csv("cli_tumor1.csv",header=T,check.names=F)
 gene <- read.csv("IGFLR1.csv",header=T,check.names=F)
-
 
 m <- merge(cli,gene,by="id")
 write.csv(m,"cox.csv",row.names = F)
-
-
-
-
-
 
 #uniCOX
 install.packages('survival')
@@ -322,8 +286,6 @@ uniSigExp=rt[,sigGenes]
 uniSigExp=cbind(id=row.names(uniSigExp),uniSigExp)
 write.table(uniSigExp,file="UniSigExp.txt",sep="\t",row.names=F,quote=F)
 
-
-
 rt <- read.table("UniCox.txt",header=T,sep="\t",row.names=1,check.names=F)
 gene <- rownames(rt)
 hr <- sprintf("%.3f",rt$"HR")
@@ -332,13 +294,11 @@ hrHigh <- sprintf("%.3f",rt$"HR.95H")
 Hazard.ratio <- paste0(hr,"(",hrLow,"-",hrHigh,")")
 pVal <- ifelse(rt$pvalue<0.001, "<0.001", sprintf("%.3f", rt$pvalue))
 
-
 pdf(file="uniforest.pdf", width = 7,height =4.5)
 n <- nrow(rt)
 nRow <- n+1
 ylim <- c(1,nRow)
 layout(matrix(c(1,2),nc=2),width=c(5,3))
-
 
 xlim = c(0,3)
 par(mar=c(4,2.5,2,1))
@@ -359,19 +319,16 @@ points(as.numeric(hr), n:1, pch = 15, col = boxcolor, cex=1.3)
 axis(1)
 dev.off()
 
-#多因素分析
+#multivariate Cox analysis
 
-library(survival)                                         #???ð?
-setwd("D:/临床+生信/IGFLR1免疫分析/单基因分析修-swj/单因素多因素分析")       #???ù???Ŀ¼
-rt=read.table("uniSigExp.txt",header=T,sep="\t",check.names=F,row.names=1)    #??ȡ?????ļ?
+library(survival)                                        
+rt=read.table("uniSigExp.txt",header=T,sep="\t",check.names=F,row.names=1)    
 rt$futime=rt$futime/365
 
-#COXģ?͹???
 multiCox=coxph(Surv(futime, fustat) ~ ., data = rt)
 multiCox=step(multiCox,direction = "both")
 multiCoxSum=summary(multiCox)
 
-#????ģ?Ͳ???
 outTab=data.frame()
 outTab=cbind(
   coef=multiCoxSum$coefficients[,"coef"],
@@ -383,7 +340,6 @@ outTab=cbind(id=row.names(outTab),outTab)
 outTab=gsub("`","",outTab)
 write.table(outTab,file="multiCox.xls",sep="\t",row.names=F,quote=F)
 
-#???????˷???ֵ
 riskScore=predict(multiCox,type="risk",newdata=rt)
 coxGene=rownames(multiCoxSum$coefficients)
 coxGene=gsub("`","",coxGene)
@@ -404,13 +360,11 @@ hrHigh <- sprintf("%.3f",rt$"HR.95H")
 Hazard.ratio <- paste0(hr,"(",hrLow,"-",hrHigh,")")
 pVal <- ifelse(rt$pvalue<0.001, "<0.001", sprintf("%.3f", rt$pvalue))
 
-#????ͼ??
 pdf(file="multiforest.pdf", width = 7,height =4.5)
 n <- nrow(rt)
 nRow <- n+1
 ylim <- c(1,nRow)
 layout(matrix(c(1,2),nc=2),width=c(5,3))
-
 
 xlim = c(0,3)
 par(mar=c(4,2.5,2,1))
@@ -419,7 +373,6 @@ text.cex=0.8
 text(0,n:1,gene,adj=0,cex=text.cex)
 text(1.5-0.5*0.2,n:1,pVal,adj=1,cex=text.cex);text(1.5-0.5*0.2,n+1,'pvalue',cex=text.cex,font=1,adj=1)
 text(3,n:1,Hazard.ratio,adj=1,cex=text.cex);text(3,n+1,'Hazard ratio',cex=text.cex,font=2,adj=1,)
-
 
 par(mar=c(4,1,2,1),mgp=c(2,0.5,0))
 xlim = c(0,max(as.numeric(hrLow),as.numeric(hrHigh)))
@@ -431,34 +384,28 @@ points(as.numeric(hr), n:1, pch = 15, col = boxcolor, cex=1.3)
 axis(1)
 dev.off()
 
-##列线图
+##nomogram
 library(rms)
-setwd("D:/临床+生信/IGFLR1免疫分析/单基因分析修-swj/单因素多因素分析")  
 rt=read.table("Risk1.txt",header=T,sep="\t",row.names=1) 
 rt <- rt[,-(9:10)]
 dd <- datadist(rt)
 options(datadist="dd")
-#???ɺ???
 f <- cph(Surv(futime, fustat) ~ age+cancer_status+pathological_M+platelet+IGFLR1, x=T, y=T, surv=T, data=rt, time.inc=3)
 surv <- Survival(f)
-
-
 
 nom <- nomogram(f, fun=list(function(x)1/(1+exp(-x)),function(x) surv(3, x), function(x) surv(5, x), function(x) surv(10, x)), 
                 lp=F, funlabel=c("Risk","3-year survival", "5-year survival", "10-year survival"), 
                 maxscale=100, 
                 fun.at=c(0.99, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3,0.2,0.1,0.05))  
-#nomogram???ӻ?
 pdf(file="Nomogram.pdf",height=7.5,width=11)
 plot(nom)
 dev.off()
 
-
-## 评价COX回归的预测效果C=0.194
+#C=0.194
 validate(f, method="boot", B=1000, dxy=T)
 rcorrcens(Surv(futime, fustat) ~ predict(f), data = rt)
 
-#校正曲线
+#calibration curve
 #3-year survival calibration curve
 f3<- cph(Surv(futime, fustat) ~ age+cancer_status+pathological_M+platelet+IGFLR1, x=T, y=T, surv=T, data=rt, time.inc=3)
 cal3 <- calibrate(f3, cmethod="KM", method="boot", u=3, m=53, B=1000)
@@ -474,17 +421,13 @@ plot(cal5)
 dev.off()
 
 #10-year survival calibration curve
-f10<- cph(Surv(futime, fustat) ~ age+cancer_status+pathological_M+platelet+IGFLR1, x=T, y=T, surv=T, data=rt, time.inc=9)
-cal10 <- calibrate(f10, cmethod="KM", method="boot", u=9, m=53, B=1000)
+f10<- cph(Surv(futime, fustat) ~ age+cancer_status+pathological_M+platelet+IGFLR1, x=T, y=T, surv=T, data=rt, time.inc=10)
+cal10 <- calibrate(f10, cmethod="KM", method="boot", u=10, m=53, B=1000)
 pdf(file="cal10.pdf",height=5,width=5)
 plot(cal10)
 dev.off()
 
-
-
-
-
-#lasso回归
+#lasso
 install.packages("glmnet")
 library("glmnet")
 library("survival")
@@ -493,7 +436,6 @@ setwd("D:/临床+生信/IGFLR1免疫分析/单基因分析修-swj/单因素多�
 rt=read.table("UniSigExp.txt",header=T,sep="\t",row.names=1)          
 rt$futime=rt$futime/365
 
-
 rt <- subset(rt, futime >0)
 x=as.matrix(rt[,c(3:ncol(rt))])
 
@@ -501,14 +443,12 @@ y=data.matrix(Surv(rt$futime,rt$fustat))
 fit=glmnet(x, y, family = "cox", maxit = 1000)
 cvfit=cv.glmnet(x, y, family="cox", maxit = 1000)
 
-
 coef=coef(fit, s = cvfit$lambda.min)
 index=which(coef != 0)
 actCoef=coef[index]
 lassoGene=row.names(coef)[index]
 geneCoef=cbind(Gene=lassoGene,Coef=actCoef)
 write.table(geneCoef,file="geneCoef.txt",sep="\t",quote=F,row.names=F)
-
 
 trainFinalGeneExp=rt[,lassoGene]
 myFun=function(x){crossprod(as.numeric(x),actCoef)}
@@ -518,7 +458,7 @@ risk=as.vector(ifelse(trainScore>median(trainScore),"high","low"))
 outTab=cbind(rt[,outCol],riskScore=as.vector(trainScore),risk)
 write.table(cbind(id=rownames(outTab),outTab),file="Risk.txt",sep="\t",quote=F,row.names=F)
 
-#生存
+#survival
 library(survival)
 library("survminer")
 
@@ -530,7 +470,6 @@ bioSurvival=function(inputFile=null,outFile=null){
   pValue=signif(pValue,4)
   pValue=format(pValue, scientific = TRUE)
   fit <- survfit(Surv(futime,fustat) ~ risk, data = rt)
-  
   
   surPlot=ggsurvplot(fit, 
                      data=rt,
@@ -551,8 +490,7 @@ bioSurvival=function(inputFile=null,outFile=null){
 }
 bioSurvival(inputFile="Risk1.txt",outFile="Risk1.pdf")
 
-
-#风险图
+#risk plot
 install.packages("pheatmap")
 library(pheatmap)
 library(survival)
@@ -586,7 +524,7 @@ dev.off()
 
 summary(fit)  
 
-#绘制ROC曲线
+#ROC
 install.packages("survivalROC")
 library(survivalROC)
 
@@ -602,16 +540,7 @@ plot(roc$FP, roc$TP, type="l", xlim=c(0,1), ylim=c(0,1),col='red',
 abline(0,1)
 dev.off()
 
-
-#绘制风险曲线
-install.packages("pheatmap")
-library(pheatmap)
-
-rt=read.table("Risk1.txt",sep="\t",header=T,row.names=1,check.names=F)       
-rt=rt[order(rt$riskScore),]                                     
-
-#绘制风险曲线
-
+#risk plot
 riskClass=rt[,"risk"]
 lowLength=length(riskClass[riskClass=="low"])
 highLength=length(riskClass[riskClass=="high"])
@@ -629,8 +558,7 @@ abline(h=median(rt$riskScore),v=lowLength,lty=2)
 legend("topleft", c("High risk", "low Risk"),bty="n",pch=19,col=c("red","green"),cex=1.2)
 dev.off()
 
-#绘制生存状态图
-
+#survial status plot
 color=as.vector(rt$fustat)
 color[color==1]="red"
 color[color==0]="green"
@@ -644,8 +572,7 @@ legend("topleft", c("Dead", "Alive"),bty="n",pch=19,col=c("red","green"),cex=1.2
 abline(v=lowLength,lty=2)
 dev.off()
 
-#风险热图
-
+#risk heatmap
 install.packages("pheatmap")
 library(pheatmap)
 rt=read.table("Risk1.txt",sep="\t",header=T,row.names=1,check.names=F)       
@@ -663,20 +590,3 @@ pheatmap(rt1,
          fontsize_col=3,
          color = colorRampPalette(c("green", "black", "red"))(50) )
 dev.off()
-
-
-#分期分级新
-#与临床生存合并
-library(limma)
-setwd("D:/临床+生信/IGFLR1免疫分析/单基因分析修-swj/分期分级-新") 
-cli <- read.csv("cli_tumor.csv",header=T,check.names=F)#临床病理特征
-gene <- read.csv("IGFLR1.csv",header=T,check.names=F)
-
-
-m <- merge(cli,gene,by="id")
-write.csv(m,"合集.csv",row.names = F)
-
-
-
-
-
